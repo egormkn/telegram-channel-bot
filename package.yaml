@@ -23,13 +23,14 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
+- text
 - telegram-bot-simple
 
 library:
   source-dirs: src
 
 executables:
-  channel-merge-bot-exe:
+  channel-bot-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -37,10 +38,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - channel-merge-bot
+    - channel-bot
 
 tests:
-  channel-merge-bot-test:
+  channel-bot-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -48,4 +49,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - channel-merge-bot
+    - channel-bot
