@@ -7,8 +7,10 @@ import GHC.Exts
 import Data.Aeson
 
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy as Text.Lazy
-import Data.Text.Lazy.Encoding as Text.Lazy
+import qualified Data.ByteString.Lazy as ByteString.Lazy
+
+import Configuration.Dotenv (loadFile, defaultConfig)
+import System.Environment
 
 type ApiId = Integer
 type ApiHash = String
@@ -51,19 +53,22 @@ printLoop client = do
 
 authorize :: ApiKey -> IO Client
 authorize key = do
+  _ <- loadFile defaultConfig
+  value <- getEnv "API_ID"
+  print value
   client <- TDLib.create
-  -- TDLib.send client "{\"@type\": \"getAuthorizationState\", \"@extra\": 1.01234}"
+  TDLib.send client "{\"@type\": \"getAuthorizationState\", \"@extra\": 1.01234}"
   message <- TDLib.receive client
   print message
-  TDLib.send client $ Text.Lazy.unpack . Text.Lazy.decodeUtf8 . encode $ stageOne key
+  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageOne key
   message2 <- TDLib.receive client
   print message2
-  TDLib.send client $ Text.Lazy.unpack . Text.Lazy.decodeUtf8 . encode $ stageTwo
+  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageTwo
   message3 <- TDLib.receive client
   print message3
   putStrLn "Please, enter mobile phone number:"
   number <- getLine
-  TDLib.send client $ Text.Lazy.unpack . Text.Lazy.decodeUtf8 . encode $ stageThree number
+  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageThree number
   printLoop client
   return client
 
