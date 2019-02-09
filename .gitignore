@@ -24,3 +24,10 @@ cabal.project.local~
 .idea/
 *.iml
 cabal.config
+*.log
+database/
+*~
+.DS_Store
+lib/*.dylib
+lib/*.so
+lib/*.dll

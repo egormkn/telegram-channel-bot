@@ -23,15 +23,17 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
-- telegram-bot-simple
-- aeson
 - text
+- unordered-containers
+- aeson
+- telegram-bot-simple
+- tdlib-haskell-bindings
 
 library:
   source-dirs: src
 
 executables:
-  channel-merge-bot-exe:
+  channel-bot-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -42,7 +44,7 @@ executables:
     - channel-bot
 
 tests:
-  channel-merge-bot-test:
+  channel-bot-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -50,4 +52,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - channel-merge-bot
+    - channel-bot
