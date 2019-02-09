@@ -21,3 +21,5 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 **/*.cabal
+.idea/
+*.iml
