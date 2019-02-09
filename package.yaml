@@ -24,6 +24,8 @@ ghc-options:
 dependencies:
 - base >= 4.7 && < 5
 - telegram-bot-simple
+- aeson
+- text
 
 library:
   source-dirs: src
@@ -37,7 +39,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - channel-merge-bot
+    - channel-bot
 
 tests:
   channel-merge-bot-test:
