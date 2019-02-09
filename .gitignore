@@ -23,6 +23,7 @@ cabal.project.local~
 **/*.cabal
 .idea/
 *.iml
+cabal.config
 *.log
 database/
 *~
