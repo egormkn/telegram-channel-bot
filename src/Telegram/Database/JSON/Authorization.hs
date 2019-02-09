@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module JSON.Authorization where
+module Telegram.Database.JSON.Authorization where
+
 import Data.Aeson
 import GHC.Exts
 

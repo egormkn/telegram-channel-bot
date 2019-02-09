@@ -31,3 +31,4 @@ database/
 lib/*.dylib
 lib/*.so
 lib/*.dll
+.env

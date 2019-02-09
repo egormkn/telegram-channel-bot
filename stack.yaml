@@ -39,7 +39,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - github: egormkn/tdlib-haskell-bindings
-  commit: 9bca47e7d734d1f0225eef6e468e1b91b8489e42
+  commit: 3bccdae63f952c4727d65655c2e4b15599fb9af3
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
