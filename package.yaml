@@ -24,7 +24,10 @@ ghc-options:
 dependencies:
 - base >= 4.7 && < 5
 - text
+- unordered-containers
+- aeson
 - telegram-bot-simple
+- tdlib-haskell-bindings
 
 library:
   source-dirs: src
