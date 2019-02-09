@@ -16,6 +16,32 @@ type ApiId = Integer
 type ApiHash = String
 type ApiKey = (ApiId, ApiHash)
 
+{-# LANGUAGE RecordWildCards #-}
+
+data TdlibParameters = TdlibParameters {
+    database_directory :: String, 
+    use_message_database :: Bool,
+    use_secret_chats :: Bool,
+    api_id :: Int,
+    api_hash :: String,
+    system_language_code :: String,
+    device_model :: String,
+    system_version :: String,
+    application_version :: String,
+    enable_storage_optimizer :: String
+  }
+
+instance FromJSON Person where
+  parseJSON = withObject "person" $ \o -> do
+    name <- o .: "name"
+    age  <- o .: "age"
+    return Person{..}
+
+instance ToJSON Person where
+  toJSON Person{..} = object [
+    "name" .= name,
+    "age"  .= age  ]
+
 stageOne :: ApiKey -> Value
 stageOne (id, hash) = Object $ fromList [
     ("@type", String "setTdlibParameters"),
