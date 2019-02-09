@@ -39,7 +39,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - github: egormkn/tdlib-haskell-bindings
-  commit: d44a2f7fd120cce37c3eb39160b94a769e189401
+  commit: 9bca47e7d734d1f0225eef6e468e1b91b8489e42
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
@@ -60,7 +60,7 @@ extra-deps:
 #
 # Extra directories used by stack for building
 # extra-include-dirs: [/path/to/dir]
-# extra-lib-dirs: [/path/to/dir]
+extra-lib-dirs: [lib]
 #
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
