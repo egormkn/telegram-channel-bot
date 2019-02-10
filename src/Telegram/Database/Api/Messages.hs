@@ -44,8 +44,7 @@ viewMessagesJSON Message{id = msgId, chatId = chatId} = Object $ fromList  [
   ]
 
 forwardMessage :: TDLib.Client -> Message -> Integer -> IO ()
-forwardMessage client msg chatId = do
-  print $ ByteString.Lazy.toStrict $ encode $ forwardMessageJSON msg chatId
+forwardMessage client msg chatId =
   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ forwardMessageJSON msg chatId
 
 viewMessage :: TDLib.Client -> Message -> IO ()

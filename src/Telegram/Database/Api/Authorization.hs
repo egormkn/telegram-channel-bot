@@ -68,7 +68,6 @@ printLoop client = do
   where
     tryPrintMessageImpl :: (Result Message) -> IO ()
     tryPrintMessageImpl (Success msg) | canBeForwarded msg && isChannelPost msg = do
-      print $ "FORWARD PIDOR: " ++ show msg
       viewMessage client msg
       forwardMessage client msg 2115507
                                       | otherwise = print msg

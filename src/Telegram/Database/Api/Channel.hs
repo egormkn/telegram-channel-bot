@@ -38,8 +38,7 @@ searchPublicChat client channelName = do
   waitForChatID client
   
 joinChat :: TDLib.Client -> Integer -> IO ()
-joinChat client chatId = do
-  print $ ByteString.Lazy.toStrict $ encode $ joinChatJSON chatId
+joinChat client chatId =
   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ joinChatJSON chatId
 
 waitForChatID :: TDLib.Client -> IO ()
@@ -47,7 +46,6 @@ waitForChatID client = do
   message <- TDLib.receive client
   printMessage message
   id <- return $ getChatIdFromMessage message
-  print id
   helper id
   where
     getChatIdFromMessage :: Maybe ByteString.ByteString -> Result Integer
