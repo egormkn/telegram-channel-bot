@@ -30,6 +30,7 @@ dependencies:
 - dotenv
 - scientific
 - split
+- mtl
 - telegram-bot-simple
 - tdlib-haskell-bindings
 
