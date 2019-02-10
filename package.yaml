@@ -31,6 +31,7 @@ dependencies:
 - scientific
 - split
 - mtl
+- containers
 - telegram-bot-simple
 - tdlib-haskell-bindings
 
