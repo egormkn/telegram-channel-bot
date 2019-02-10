@@ -5,7 +5,6 @@ module Telegram.Database.Api.Authorization where
 import Telegram.Database.Api.Decoding
 import Data.Aeson
 import GHC.Exts
-import Control.Monad.Extra
 
 import qualified Telegram.Database.Json as TDLib
 import qualified Data.Text as Text
