@@ -3,9 +3,7 @@
 module Telegram.Database.Api.Authorization where
 
 import Telegram.Database.Api.Decoding
-import Telegram.Database.Api.Channel
 import Telegram.Database.Api.Utils
-import Telegram.Database.Api.Messages
 import Data.Aeson
 import Data.Aeson.Types
 import GHC.Exts
@@ -59,31 +57,6 @@ stageFour number = Object $ fromList  [
     ("code", String $ Text.pack number)
   ]
 
-printLoop :: Client -> IO ()
-printLoop client = do
-  message4 <- TDLib.receive client
-  printMessage message4
-  tryPrintMessage message4
-  printLoop client
-  where
-    tryPrintMessageImpl :: (Result Message) -> IO ()
-    tryPrintMessageImpl (Success msg) | canBeForwarded msg && isChannelPost msg = do
-      viewMessage client msg
-      forwardMessage client msg 2115507
-                                      | containsTelegramLink msg = tryToSubscribe channel
-                                      | otherwise = print msg
-                                      where
-                                        channel = getChannelNameFromMessage msg
-                                        tryToSubscribe :: Maybe String -> IO ()
-                                        tryToSubscribe (Just name) = subscribeToChannel client name
-                                        tryToSubscribe Nothing = return ()
-                                        
-    tryPrintMessageImpl (Error errMsg) = print $ "PARSE ERROR: " ++ errMsg
-
-    tryPrintMessage :: Maybe ByteString.ByteString -> IO ()
-    tryPrintMessage (Just message) = tryPrintMessageImpl (getNewMessage message)
-    tryPrintMessage Nothing = return ()
-
 getAuthStateFromMessage :: Maybe ByteString.ByteString -> Result AuthorizationState
 getAuthStateFromMessage (Just str) = getAuthorizationState str
 getAuthStateFromMessage Nothing = Error "test"
@@ -126,12 +99,8 @@ authorize :: ApiKey -> IO Client
 authorize key = do
   client <- TDLib.create
   TDLib.send client "{\"@type\": \"getAuthorizationState\", \"@extra\": 1.01234}"
-
   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageOne key
   waitForType AuthorizationStateWaitEncryptionKey client
-
-  print "!!!!!!!!!!!!!!! LOOP STARTED !!!!!!!!!!!!!!"
-  printLoop client
   return client
 
 close :: Client -> IO ()

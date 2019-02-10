@@ -2,6 +2,7 @@
 module Telegram.Bot.ChannelBot where
 
 import Control.Applicative
+import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -160,3 +161,8 @@ backgroundTask model = model <# do
   where
     listsKeyboard = InlineKeyboardMarkup $
       map ((\name -> [actionButton name (ShowChannel name)]) . channelUsername) (channels model)
+
+-- run :: String -> IO ()
+-- run token = do
+--   token <- Token . Text.pack <$> token
+--   defaultTelegramClientEnv >=> startBot_ (conversationBot updateChatId channelBot)
