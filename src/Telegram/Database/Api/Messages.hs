@@ -32,7 +32,7 @@ data Message = Message {
   chatId :: Integer,
   isChannelPost :: Bool,
   canBeForwarded :: Bool,
-  msgText :: MsgText
+  msgText :: Maybe MsgText
 } deriving (Show, Read, Eq)
 
 instance FromJSON Message where
@@ -42,20 +42,22 @@ instance FromJSON Message where
     isChannelPost <- o .: "is_channel_post" :: (Parser Bool)
     canBeForwarded <- o .: "can_be_forwarded" :: (Parser Bool)
     content <- o .: "content"
-    msgText <- content .: "text"
+    msgText <- content .:? "text"
     return $ Message {..}
 
 containsTelegramLink :: Message -> Bool 
-containsTelegramLink Message{msgText=MsgText{text=text}} = isTelegramLink text
+containsTelegramLink Message{msgText=Just MsgText{text=text}} = isTelegramLink text
   where
     isTelegramLink :: String -> Bool
     isTelegramLink = isPrefixOf telegramBaseLink
+containsTelegramLink _ = False
 
 getChannelNameFromMessage :: Message -> Maybe String
-getChannelNameFromMessage Message{msgText=MsgText{text=text}} = getChannelName text
+getChannelNameFromMessage Message{msgText=Just MsgText{text=text}} = getChannelName text
   where
     getChannelName :: String -> Maybe String
     getChannelName = stripPrefix telegramBaseLink
+getChannelNameFromMessage _ = Nothing
 
 
 forwardMessageJSON :: Message -> Integer -> Value
