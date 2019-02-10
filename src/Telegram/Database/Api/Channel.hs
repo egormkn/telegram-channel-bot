@@ -2,7 +2,8 @@
 
 module Telegram.Database.Api.Channel
   (
-    subscribeToChannel
+    subscribeToChannel,
+    getChannelId
   ) where
 
 import Data.Aeson
@@ -17,8 +18,11 @@ import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Telegram.Database.Json as TDLib
 import qualified Data.Text as Text
 
-subscribeToChannel :: TDLib.Client -> String -> IO ()
-subscribeToChannel = searchPublicChat
+subscribeToChannel :: TDLib.Client -> Integer -> IO ()
+subscribeToChannel = joinChat
+
+getChannelId :: TDLib.Client -> String -> IO Integer
+getChannelId = searchPublicChat
 
 joinChatJSON :: Integer -> Value
 joinChatJSON chatId = Object $ fromList  [
@@ -32,7 +36,7 @@ searchPublicChatJSON name = Object $ fromList  [
   ("username", String $ Text.pack name)
   ]
 
-searchPublicChat :: TDLib.Client -> String -> IO ()
+searchPublicChat :: TDLib.Client -> String -> IO Integer
 searchPublicChat client channelName = do
   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ searchPublicChatJSON channelName
   waitForChatID client
@@ -41,7 +45,7 @@ joinChat :: TDLib.Client -> Integer -> IO ()
 joinChat client chatId =
   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ joinChatJSON chatId
 
-waitForChatID :: TDLib.Client -> IO ()
+waitForChatID :: TDLib.Client -> IO Integer
 waitForChatID client = do
   message <- TDLib.receive client
   printMessage message
@@ -52,8 +56,8 @@ waitForChatID client = do
     getChatIdFromMessage (Just str) = getChatID str
     getChatIdFromMessage Nothing = Error "test"
 
-    helper :: Result Integer -> IO ()
-    helper (Success chatId) = joinChat client chatId
+    helper :: Result Integer -> IO Integer
+    helper (Success chatId) = return chatId
     helper _ = waitForChatID client
 
 getChatID :: ByteString.ByteString -> Result Integer
