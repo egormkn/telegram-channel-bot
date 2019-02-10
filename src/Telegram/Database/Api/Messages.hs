@@ -8,12 +8,13 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.Scientific
 import Data.List
+import qualified Data.Text as Text
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Telegram.Database.Json as TDLib
 
-telegramBaseLink :: String
+telegramBaseLink :: Text.Text
 telegramBaseLink = "https://t.me/"
 
 data MsgText = MsgText {
@@ -46,19 +47,14 @@ instance FromJSON Message where
     return $ Message {..}
 
 containsTelegramLink :: Message -> Bool 
-containsTelegramLink Message{msgText=Just MsgText{text=text}} = isTelegramLink text
+containsTelegramLink Message{msgText=Just MsgText{text=text}} = isTelegramLink $ Text.pack text
   where
-    isTelegramLink :: String -> Bool
-    isTelegramLink = isPrefixOf telegramBaseLink
+    isTelegramLink :: Text.Text -> Bool
+    isTelegramLink = Text.isPrefixOf telegramBaseLink
 containsTelegramLink _ = False
 
-getChannelNameFromMessage :: Message -> Maybe String
-getChannelNameFromMessage Message{msgText=Just MsgText{text=text}} = getChannelName text
-  where
-    getChannelName :: String -> Maybe String
-    getChannelName = stripPrefix telegramBaseLink
-getChannelNameFromMessage _ = Nothing
-
+getChannelNameFromText :: Text.Text -> Maybe Text.Text
+getChannelNameFromText = Text.stripPrefix telegramBaseLink
 
 forwardMessageJSON :: Message -> Integer -> Value
 forwardMessageJSON Message{id = msgId, chatId = fromChatId} chatId = Object $ fromList  [

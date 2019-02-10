@@ -41,19 +41,19 @@ mkParser = Parser
 parseCommand :: Parser a -> Text -> Maybe (a, Text)
 parseCommand = runParser
 
-text :: Parser Text
-text = Parser (\s -> Just (s, ""))
+textParser :: Parser Text
+textParser = Parser (\s -> Just (s, ""))
 
 plainText :: Parser Text
 plainText = do
-  t <- text
+  t <- textParser
   if "/" `Text.isPrefixOf` t
   then fail "command"
   else pure t
 
 command :: Text -> Parser Text
 command name = do
-  t <- text
+  t <- textParser
   case Text.words t of
     (w:ws) | w == "/" <> name -> pure (Text.unwords ws)
     _                         -> fail "not that command"
