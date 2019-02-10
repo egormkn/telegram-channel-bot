@@ -70,8 +70,15 @@ printLoop client = do
     tryPrintMessageImpl (Success msg) | canBeForwarded msg && isChannelPost msg = do
       viewMessage client msg
       forwardMessage client msg 2115507
+                                      | containsTelegramLink msg = tryToSubscribe channel
                                       | otherwise = print msg
-    tryPrintMessageImpl _ = return ()
+                                      where
+                                        channel = getChannelNameFromMessage msg
+                                        tryToSubscribe :: Maybe String -> IO ()
+                                        tryToSubscribe (Just name) = subscribeToChannel client name
+                                        tryToSubscribe Nothing = return ()
+                                        
+    tryPrintMessageImpl (Error errMsg) = print $ "PARSE ERROR: " ++ errMsg
 
     tryPrintMessage :: Maybe ByteString.ByteString -> IO ()
     tryPrintMessage (Just message) = tryPrintMessageImpl (getNewMessage message)

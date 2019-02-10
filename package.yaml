@@ -29,6 +29,7 @@ dependencies:
 - aeson
 - dotenv
 - scientific
+- split
 - telegram-bot-simple
 - tdlib-haskell-bindings
 

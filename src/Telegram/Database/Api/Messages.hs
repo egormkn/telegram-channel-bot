@@ -7,16 +7,32 @@ import GHC.Exts
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Scientific
+import Data.List
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Telegram.Database.Json as TDLib
 
+telegramBaseLink :: String
+telegramBaseLink = "https://t.me/"
+
+data MsgText = MsgText {
+  type' :: String,
+  text :: String
+} deriving (Show, Read, Eq)
+
+instance FromJSON MsgText where
+  parseJSON = withObject "message text" $ \o -> do
+    type' <- o .: "@type" 
+    text <- o .: "text"
+    return $ MsgText{..}
+
 data Message = Message {
   id :: Integer,
   chatId :: Integer,
   isChannelPost :: Bool,
-  canBeForwarded :: Bool
+  canBeForwarded :: Bool,
+  msgText :: MsgText
 } deriving (Show, Read, Eq)
 
 instance FromJSON Message where
@@ -25,7 +41,22 @@ instance FromJSON Message where
     chatId <- o .: "chat_id" :: (Parser Integer)
     isChannelPost <- o .: "is_channel_post" :: (Parser Bool)
     canBeForwarded <- o .: "can_be_forwarded" :: (Parser Bool)
+    content <- o .: "content"
+    msgText <- content .: "text"
     return $ Message {..}
+
+containsTelegramLink :: Message -> Bool 
+containsTelegramLink Message{msgText=MsgText{text=text}} = isTelegramLink text
+  where
+    isTelegramLink :: String -> Bool
+    isTelegramLink = isPrefixOf telegramBaseLink
+
+getChannelNameFromMessage :: Message -> Maybe String
+getChannelNameFromMessage Message{msgText=MsgText{text=text}} = getChannelName text
+  where
+    getChannelName :: String -> Maybe String
+    getChannelName = stripPrefix telegramBaseLink
+
 
 forwardMessageJSON :: Message -> Integer -> Value
 forwardMessageJSON Message{id = msgId, chatId = fromChatId} chatId = Object $ fromList  [
