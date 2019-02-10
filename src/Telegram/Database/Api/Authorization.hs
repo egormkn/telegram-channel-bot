@@ -2,6 +2,7 @@
 
 module Telegram.Database.Api.Authorization where
 
+import Telegram.Database.Api.Decoding
 import Data.Aeson
 import GHC.Exts
 
@@ -11,11 +12,12 @@ import qualified Data.Text as Text
 import Telegram.Database.Json as TDLib
 
 import qualified Data.ByteString.Lazy as ByteString.Lazy
+import qualified Data.ByteString as ByteString
 
 import qualified Configuration.Env as Env
 
 data TdlibParameters = TdlibParameters {
-    database_directory :: String, 
+    database_directory :: String,
     use_message_database :: Bool,
     use_secret_chats :: Bool,
     api_id :: Int,
@@ -71,32 +73,85 @@ stageThree number = Object $ fromList  [
     ("phone_number", String $ Text.pack number)
   ]
 
+stageFour :: String -> Value
+stageFour number = Object $ fromList  [
+    ("@type", String "checkAuthenticationCode"),
+    ("code", String $ Text.pack number)
+  ]
+
+printMessage :: Maybe ByteString.ByteString -> IO ()
+printMessage (Just message) = print message
+printMessage Nothing = return ()
 
 printLoop :: Client -> IO ()
 printLoop client = do
   message4 <- TDLib.receive client
-  print message4
+  printMessage message4
   printLoop client
+
+getAuthStateFromMessage :: Maybe ByteString.ByteString -> Result AuthorizationState
+getAuthStateFromMessage (Just str) = getAuthorizationState str
+getAuthStateFromMessage Nothing = Error "test"
+
+checkAuthorizationState :: AuthorizationState -> Result AuthorizationState -> Bool
+checkAuthorizationState expextedState (Success state) =  expextedState == state
+checkAuthorizationState _ _ = False
+
+waitForType :: AuthorizationState -> Client -> IO ()
+waitForType expectedState client = do
+  message <- TDLib.receive client
+  print ("WAIT: Wating for " ++ show expectedState)
+  state <- (return $ getAuthStateFromMessage message)
+  printMessage message
+  helper state
+  where
+    helper :: Result AuthorizationState -> IO ()
+    helper (Success state) = do
+      print ("########## Type recieved " ++ show state ++ " ##########")
+      processState client state
+    helper _ = waitForType expectedState client
 
 
 type ApiId = Integer
 type ApiHash = String
 type ApiKey = (ApiId, ApiHash)
 
+processState :: Client -> AuthorizationState -> IO ()
+processState client AuthorizationStateWaitEncryptionKey = do
+  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageTwo
+  waitForType AuthorizationStateWaitPhoneNumber client
+processState client AuthorizationStateWaitPhoneNumber = do
+  number <- Env.get "mobile phone number" "PHONE_NUMBER"
+  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageThree number
+  waitForType AuthorizationStateWaitCode client
+processState client AuthorizationStateWaitCode = do
+  putStrLn "Please, enter code:"
+  code <- getLine
+  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageFour code
+  waitForType AuthorizationStateReady client
+processState _ AuthorizationStateReady = return ()
+processState client _ = waitForType AuthorizationStateReady client
+
 authorize :: ApiKey -> IO Client
 authorize key = do
   client <- TDLib.create
   TDLib.send client "{\"@type\": \"getAuthorizationState\", \"@extra\": 1.01234}"
-  message <- TDLib.receive client
-  print message
+
   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageOne key
-  message2 <- TDLib.receive client
-  print message2
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageTwo
-  message3 <- TDLib.receive client
-  print message3
-  number <- Env.get "mobile phone number" "PHONE_NUMBER"
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageThree number
+  waitForType AuthorizationStateWaitEncryptionKey client
+
+  -- TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageTwo
+  -- waitForType AuthorizationStateWaitPhoneNumber client
+  -- number <- Env.get "mobile phone number" "PHONE_NUMBER"
+
+  -- TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageThree number
+  -- waitForType AuthorizationStateWaitCode client
+
+  -- putStrLn "Please, enter code:"
+  -- code <- getLine
+  -- TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageFour code
+
+  print "!!!!!!!!!!!!!!! LOOP STARTED !!!!!!!!!!!!!!"
   printLoop client
   return client
 
