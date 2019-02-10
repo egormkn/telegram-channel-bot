@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Telegram.Database.JSON.Decoding (getType) where
+module Telegram.Database.Api.Decoding (getType) where
 
 import Data.Aeson
 import Data.Aeson.Types
