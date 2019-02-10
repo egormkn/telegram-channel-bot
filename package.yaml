@@ -28,6 +28,7 @@ dependencies:
 - unordered-containers
 - aeson
 - dotenv
+- scientific
 - telegram-bot-simple
 - tdlib-haskell-bindings
 
