@@ -40,7 +40,7 @@ makeModel = Model {
 
 addChannel :: ChannelUsername -> Model -> Model
 addChannel name model = model { 
-  channels = makeChannel { channelUsername = name } : (channels model) 
+  channels = makeChannel { channelUsername = name } : channels model
 }
 
 removeChannel :: ChannelUsername -> Model -> Model
@@ -57,8 +57,10 @@ data Action
   | RemoveChannel ChannelUsername
   | ShowChannels
   | SilentMode
-  | Print Text
-  deriving (Show, Read)
+  | Forward Message
+  | Debug
+  | DebugMessage Text
+  deriving (Show)
 
 channelBot :: BotApp Model Action
 channelBot = BotApp { 
@@ -69,15 +71,19 @@ channelBot = BotApp {
 }
 
 updateToAction :: Model -> Update -> Maybe Action
-updateToAction _ = parseUpdate $
-      Start         <$  command "start"
-  <|> AddChannel    <$> command "add"
-  <|> ShowChannel   <$> command "show"
-  <|> RemoveChannel <$> command "remove"
-  <|> ToggleChannel <$> plainText
-  <|> ShowChannels  <$  command "showall"
-  <|> SilentMode    <$  command "silent"
-  <|> callbackQueryDataRead
+updateToAction _ update = do
+  message <- updateMessage update
+  case messageForwardFromChat message of
+    Just chat -> Just $ Forward message
+    Nothing -> parseUpdate (
+          Start         <$  command "start"
+      <|> AddChannel    <$> command "add"
+      <|> ShowChannel   <$> command "show"
+      <|> RemoveChannel <$> command "remove"
+      <|> ShowChannels  <$  command "showall"
+      <|> SilentMode    <$  command "silent"
+      <|> Debug         <$  command "debug"
+      <|> DebugMessage  <$> text) update
 
 handleAction :: Action -> Model -> Eff Action Model
 handleAction action model = case action of
@@ -101,8 +107,18 @@ handleAction action model = case action of
     reply (toReplyMessage "Available channels. Click to remove")
       { replyMessageReplyMarkup = Just (SomeInlineKeyboardMarkup listsKeyboard) }
     return NoOp
-  Print msg -> model <# do
+  Debug -> model <# do
+    replyText "Debug info"
+    currentId <- currentChatId
+    me <- liftClientM getMe
+    replyText $ getChatId currentId
+    replyText $ Text.pack $ show me
+    return NoOp
+  DebugMessage msg -> model <# do
     replyText msg
+    return NoOp
+  Forward msg -> model <# do
+    forwardTo (SomeChatId (ChatId 2115507)) msg
     return NoOp
   SilentMode -> model { silentMode = not $ silentMode model } <# do
     replyText "Silent mode enabled!"
@@ -111,6 +127,10 @@ handleAction action model = case action of
   where
     listsKeyboard = InlineKeyboardMarkup $
       map ((\name -> [actionButton name (RemoveChannel name)]) . channelUsername) (channels model)
+
+getChatId :: Maybe ChatId -> Text
+getChatId Nothing = "Unknown"
+getChatId (Just i) = Text.pack $ show i
 
 startMessage :: Text
 startMessage = Text.unlines [
@@ -134,7 +154,7 @@ backgroundJob = BotJob {
 
 backgroundTask :: Model -> Eff Action Model
 backgroundTask model = model <# do
-  reply (toReplyMessage "Available todo lists")
+  replyTo (SomeChatId (ChatId 2115507)) (toReplyMessage "Hello from CRON task")
     { replyMessageReplyMarkup = Just (SomeInlineKeyboardMarkup listsKeyboard) }
   return NoOp
   where

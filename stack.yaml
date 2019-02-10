@@ -40,6 +40,8 @@ packages:
 extra-deps:
 - github: egormkn/tdlib-haskell-bindings
   commit: 3bccdae63f952c4727d65655c2e4b15599fb9af3
+- github: egormkn/telegram-bot-simple
+  commit: aa816d5f1c9a4fd413bd52f7240205e8d954cae9
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
