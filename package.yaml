@@ -1,0 +1,61 @@
+name:                channel-bot
+version:             0.1.0.0
+github:              "egormkn/channel-bot"
+license:             MIT
+author:              "Egor Makarenko"
+maintainer:          "egormkn@yandex.ru"
+copyright:           "2019 Egor Makarenko"
+
+extra-source-files:
+- README.md
+
+# Metadata used when publishing your package
+synopsis:            Telegram bot for merging channels
+category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/egormkn/channel-bot>
+
+ghc-options:
+- -Wall
+
+dependencies:
+- base >= 4.11 && < 5
+- text
+- bytestring
+- unordered-containers
+- aeson
+- dotenv
+- scientific
+- split
+- mtl
+- containers
+- telegram-bot-simple
+- tdlib-haskell-bindings
+
+library:
+  source-dirs: src
+
+executables:
+  channel-bot-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - channel-bot
+
+tests:
+  channel-bot-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - channel-bot
