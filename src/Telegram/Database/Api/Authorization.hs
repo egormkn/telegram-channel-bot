@@ -135,33 +135,3 @@ getAuthorizationState jsonStr = if isAuthState then unpackState (getState maybeO
     isAuthStateImpl :: Result Text -> Bool
     isAuthStateImpl (Success "updateAuthorizationState") = True
     isAuthStateImpl _ = False
-
-
--- ####################### Draft for first stage JSON #######################
--- data TdlibParameters = TdlibParameters {
---     database_directory :: String,
---     use_message_database :: Bool,
---     use_secret_chats :: Bool,
---     api_id :: Int,
---     api_hash :: String,
---     system_language_code :: String,
---     device_model :: String,
---     system_version :: String,
---     application_version :: String,
---     enable_storage_optimizer :: String
---   }
-
--- instance FromJSON TdlibParameters where
---   parseJSON = withObject "parameters" $ \o -> do
---     database_directory   <- o .: "database_directory"
---     use_message_database <- o .: "use_message_database"
---     return TdlibParameters{..}
-
--- instance ToJSON TdlibParameters where
---   toJSON TdlibParameters{..} = object [
---     "database_directory" .= database_directory,
---     "use_message_database"  .= use_message_database  ]
-
--- setTdlibParameters :: TdlibParameters -> IO ()
--- setTdlibParameters p = do
---   send client $ encodeValue $ toJSON $ TdlibParameters {}
