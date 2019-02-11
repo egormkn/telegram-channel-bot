@@ -2,62 +2,43 @@
 
 module Telegram.Database.Api.Messages where
 
-import Telegram.Database.Api.Decoding
-import GHC.Exts
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Scientific
-import Data.List
-import qualified Data.Text as Text
+import Data.Text
+import GHC.Exts
+import Telegram.Database.Json
+import Telegram.Database.Api.Utils
+import Telegram.Database.Api.Decoding
 
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Lazy as ByteString.Lazy
-import qualified Telegram.Database.Json as TDLib
 
-telegramBaseLink :: Text.Text
+telegramBaseLink :: Text
 telegramBaseLink = "https://t.me/"
 
-data MsgText = MsgText {
-  type' :: String,
-  text :: String
+data Content = Content {
+  contentType :: Text,
+  msgText :: Maybe Text
 } deriving (Show, Read, Eq)
 
-instance FromJSON MsgText where
-  parseJSON = withObject "message text" $ \o -> do
-    type' <- o .: "@type" 
-    text <- o .: "text"
-    return $ MsgText{..}
 
 data Message = Message {
-  id :: Integer,
+  messageId :: Integer,
   chatId :: Integer,
   isChannelPost :: Bool,
   canBeForwarded :: Bool,
-  msgText :: Maybe MsgText
+  content :: Content
 } deriving (Show, Read, Eq)
 
-instance FromJSON Message where
-  parseJSON = withObject "new message" $ \o -> do
-    id <- o .: "id" :: (Parser Integer)
-    chatId <- o .: "chat_id" :: (Parser Integer)
-    isChannelPost <- o .: "is_channel_post" :: (Parser Bool)
-    canBeForwarded <- o .: "can_be_forwarded" :: (Parser Bool)
-    content <- o .: "content"
-    msgText <- content .:? "text"
-    return $ Message {..}
-
-containsTelegramLink :: Message -> Bool 
-containsTelegramLink Message{msgText=Just MsgText{text=text}} = isTelegramLink $ Text.pack text
-  where
-    isTelegramLink :: Text.Text -> Bool
-    isTelegramLink = Text.isPrefixOf telegramBaseLink
+containsTelegramLink :: Message -> Bool
+containsTelegramLink Message { content = Content { msgText = Just msgText } } = telegramBaseLink `isPrefixOf` msgText
 containsTelegramLink _ = False
 
-getChannelNameFromText :: Text.Text -> Maybe Text.Text
-getChannelNameFromText = Text.stripPrefix telegramBaseLink
+getChannelNameFromText :: Text -> Maybe Text
+getChannelNameFromText = stripPrefix telegramBaseLink
 
 forwardMessageJSON :: Message -> Integer -> Value
-forwardMessageJSON Message{id = msgId, chatId = fromChatId} chatId = Object $ fromList  [
+forwardMessageJSON Message{messageId = msgId, chatId = fromChatId} chatId = Object $ fromList  [
   ("@type", String "forwardMessages"),
   ("from_chat_id", Number (scientific fromChatId 0)),
   ("chat_id", Number (scientific chatId 0)),
@@ -65,40 +46,78 @@ forwardMessageJSON Message{id = msgId, chatId = fromChatId} chatId = Object $ fr
   ]
 
 viewMessagesJSON :: Message -> Value
-viewMessagesJSON Message{id = msgId, chatId = chatId} = Object $ fromList  [
+viewMessagesJSON Message{messageId = msgId, chatId = chatId} = Object $ fromList  [
   ("@type", String "viewMessages"),
   ("chat_id", Number (scientific chatId 0)),
   ("message_ids", Array $ fromList [Number (scientific msgId 0)]),
   ("force_read", Bool True)
   ]
 
-forwardMessage :: TDLib.Client -> Message -> Integer -> IO ()
-forwardMessage client msg chatId =
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ forwardMessageJSON msg chatId
+sendMessageJSON :: Text -> Message -> Value
+sendMessageJSON text Message{chatId = chatId} = Object $ fromList  [
+  ("@type", String "sendMessage"),
+  ("chat_id", Number (scientific chatId 0)),
+  ("input_message_content", Object $ fromList [
+    ("@type", String "inputMessageText"),
+    ("text", Object $ fromList [
+      ("@type", String "formattedText"),
+      ("text", String text)
+      ])
+    ])
+  ]
 
-viewMessage :: TDLib.Client -> Message -> IO ()
+sendMessage :: Client -> Text -> Message -> IO ()
+sendMessage client text msg = do
+  print $ encodeValue $ sendMessageJSON text msg
+  send client $ encodeValue $ sendMessageJSON text msg
+
+forwardMessage :: Client -> Message -> Integer -> IO ()
+forwardMessage client msg chatId =
+  send client $ encodeValue $ forwardMessageJSON msg chatId
+
+viewMessage :: Client -> Message -> IO ()
 viewMessage client msg =
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ viewMessagesJSON msg
+  send client $ encodeValue $ viewMessagesJSON msg
 
 
 getNewMessage :: ByteString.ByteString -> Result Message
-getNewMessage jsonStr = if isNewMessage then unpackState (getMessage obj) else Error "Not new message"
+getNewMessage jsonStr = if isNewMessage then unpackState (getMessage maybeObj) else Error "Not new message"
   where
-    obj = getObject jsonStr
-    type' = getTypeFromObject obj
+    maybeObj = getObject jsonStr
+    type' = getTypeFromObject maybeObj
     isNewMessage = isNewMessageImpl type'
 
     unpackState :: Result (Result Message) -> Result Message
     unpackState (Success result) = result
-    unpackState _ = Error "Can't parse message id"
+    unpackState _ = Error "Can't parse message"
 
-    getMessage :: (Maybe Object) -> Result (Result Message)
+    getMessage :: Maybe Object -> Result (Result Message)
     getMessage (Just obj) = parse (\o -> do
       message <- o .: "message"
       return (fromJSON message))
       obj
-    getMessage Nothing = Error "Can't parse message id"
+    getMessage Nothing = Error "Can't parse message"
 
-    isNewMessageImpl :: Result String -> Bool
+    isNewMessageImpl :: Result Text -> Bool
     isNewMessageImpl (Success "updateNewMessage") = True
     isNewMessageImpl _ = False
+
+
+instance FromJSON Content where
+  parseJSON = withObject "content" $ \o -> do
+    contentType <- o .: "@type"
+    msgText <- do
+      textObj <- o .:? "text"
+      case textObj of
+        Just p -> p .:? "text"
+        Nothing -> fail "doesn't have text"
+    return $ Content{..}
+
+instance FromJSON Message where
+  parseJSON = withObject "new message" $ \o -> do
+    messageId <- o .: "id"
+    chatId <- o .: "chat_id"
+    isChannelPost <- o .: "is_channel_post"
+    canBeForwarded <- o .: "can_be_forwarded"
+    content <- o .: "content"
+    return $ Message {..}

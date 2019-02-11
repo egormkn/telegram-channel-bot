@@ -3,25 +3,25 @@
 module Telegram.Database.Api.Channel
   (
     subscribeToChannel,
-    getChannelId
+    getChannelId,
+    getChat
   ) where
 
-import Data.Aeson
-import Data.Aeson.Types
-import GHC.Exts
-import Data.Scientific
 import Telegram.Database.Api.Decoding
 import Telegram.Database.Api.Utils
+import Telegram.Database.Json
+import Data.Aeson
+import GHC.Exts
+import Data.Scientific
+import Data.Text
 
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Lazy as ByteString.Lazy
-import qualified Telegram.Database.Json as TDLib
-import qualified Data.Text as Text
 
-subscribeToChannel :: TDLib.Client -> Integer -> IO ()
+
+subscribeToChannel :: Client -> Integer -> IO ()
 subscribeToChannel = joinChat
 
-getChannelId :: TDLib.Client -> String -> IO Integer
+getChannelId :: Client -> Text -> IO Integer
 getChannelId = searchPublicChat
 
 joinChatJSON :: Integer -> Value
@@ -30,47 +30,49 @@ joinChatJSON chatId = Object $ fromList  [
   ("chat_id", Number (scientific chatId 0))
   ]
 
-searchPublicChatJSON :: String -> Value
+searchPublicChatJSON :: Text -> Value
 searchPublicChatJSON name = Object $ fromList  [
   ("@type", String "searchPublicChat"),
-  ("username", String $ Text.pack name)
+  ("username", String $ name)
   ]
 
-searchPublicChat :: TDLib.Client -> String -> IO Integer
+getChatJSON :: Integer -> Value
+getChatJSON chatId = Object $ fromList  [
+  ("@type", String "getChat"),
+  ("chat_id", Number (scientific chatId 0))
+  ]
+
+getChat :: Client -> Integer -> IO Text
+getChat client chatId = do
+  send client $ encodeValue $ getChatJSON chatId
+  title <- waitForObjectWithType "chat" "title" client
+  putStrLn "FFFFFFFUUUUUUUUUUUUUUUUCCCCCCCCCCCCCCCCKKKKKKKKKKK"
+  putStrLn title
+  print title
+  print $ (read $ show title :: Text)
+  return $ read $ show title
+
+searchPublicChat :: Client -> Text -> IO Integer
 searchPublicChat client channelName = do
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ searchPublicChatJSON channelName
-  waitForChatID client
-  
-joinChat :: TDLib.Client -> Integer -> IO ()
+  send client $ encodeValue $ searchPublicChatJSON channelName
+  waitForObjectWithType "chat" "id" client
+
+joinChat :: Client -> Integer -> IO ()
 joinChat client chatId =
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ joinChatJSON chatId
+  send client $ encodeValue $ joinChatJSON chatId
 
-waitForChatID :: TDLib.Client -> IO Integer
-waitForChatID client = do
-  message <- TDLib.receive client
+waitForObjectWithType ::  FromJSON a => Text -> Text -> Client -> IO a
+waitForObjectWithType typeStr fieldStr client = do
+  message <- receive client
   printMessage message
-  id <- return $ getChatIdFromMessage message
-  helper id
+  let field = getFieldFromMessage message
+  helper field
   where
-    getChatIdFromMessage :: Maybe ByteString.ByteString -> Result Integer
-    getChatIdFromMessage (Just str) = getChatID str
-    getChatIdFromMessage Nothing = Error "test"
+    getFieldFromMessage :: FromJSON a => Maybe ByteString.ByteString -> Result a
+    getFieldFromMessage (Just str) = getFieldWithType typeStr fieldStr str
+    getFieldFromMessage Nothing = Error "test"
 
-    helper :: Result Integer -> IO Integer
+    helper :: FromJSON a => Result a -> IO a
     helper (Success chatId) = return chatId
-    helper _ = waitForChatID client
+    helper _ = waitForObjectWithType typeStr fieldStr client
 
-getChatID :: ByteString.ByteString -> Result Integer
-getChatID jsonStr = if isChat then getChatImpl obj else Error "Not updateAuthorizationState"
-  where
-    obj = getObject jsonStr
-    type' = getTypeFromObject obj
-    isChat = isChatImpl type'
- 
-    getChatImpl :: (Maybe Object) -> Result Integer
-    getChatImpl (Just obj) = parse (\o -> o .: "id") obj
-    getChatImpl Nothing = Error "Can't parse authorization_state"
- 
-    isChatImpl :: Result String -> Bool
-    isChatImpl (Success "chat") = True
-    isChatImpl _ = False

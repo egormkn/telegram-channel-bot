@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Telegram.Database.Api.Authorization where
 
@@ -7,13 +7,10 @@ import Telegram.Database.Api.Utils
 import Data.Aeson
 import Data.Aeson.Types
 import GHC.Exts
-
-import qualified Telegram.Database.Json as TDLib
-import qualified Data.Text as Text
+import Data.Text
 
 import Telegram.Database.Json as TDLib
 
-import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.ByteString as ByteString
 
 import qualified Configuration.Env as Env
@@ -30,7 +27,7 @@ stageOne (apiId, hash) = Object $ fromList [
         ("use_message_database", Bool True),
         ("use_secret_chats", Bool True),
         ("api_id", Number $ fromInteger apiId),
-        ("api_hash", String $ Text.pack hash),
+        ("api_hash", String $ pack hash),
         ("system_language_code", String "en"),
         ("device_model", String "Desktop"),
         ("system_version", String "Unknown"),
@@ -45,31 +42,23 @@ stageTwo = Object $ fromList [
     ("encryption_key", String "")
   ]
 
-stageThree :: String -> Value
+stageThree :: Text -> Value
 stageThree number = Object $ fromList  [
     ("@type", String "setAuthenticationPhoneNumber"),
-    ("phone_number", String $ Text.pack number)
+    ("phone_number", String number)
   ]
 
-stageFour :: String -> Value
+stageFour :: Text -> Value
 stageFour number = Object $ fromList  [
     ("@type", String "checkAuthenticationCode"),
-    ("code", String $ Text.pack number)
+    ("code", String number)
   ]
 
-getAuthStateFromMessage :: Maybe ByteString.ByteString -> Result AuthorizationState
-getAuthStateFromMessage (Just str) = getAuthorizationState str
-getAuthStateFromMessage Nothing = Error "test"
-
-checkAuthorizationState :: AuthorizationState -> Result AuthorizationState -> Bool
-checkAuthorizationState expextedState (Success state) =  expextedState == state
-checkAuthorizationState _ _ = False
-
-waitForType :: AuthorizationState -> Client -> IO ()
-waitForType expectedState client = do
-  message <- TDLib.receive client
+waitForType :: Client -> AuthorizationState -> IO ()
+waitForType client expectedState = do
+  message <- receive client
   print ("WAIT: Wating for " ++ show expectedState)
-  state <- (return $ getAuthStateFromMessage message)
+  let state = getAuthStateFromMessage message
   printMessage message
   helper state
   where
@@ -77,30 +66,34 @@ waitForType expectedState client = do
     helper (Success state) = do
       print ("########## Type recieved " ++ show state ++ " ##########")
       processState client state
-    helper _ = waitForType expectedState client
+    helper _ = waitForType client expectedState
+
+    getAuthStateFromMessage :: Maybe ByteString.ByteString -> Result AuthorizationState
+    getAuthStateFromMessage (Just str) = getAuthorizationState str
+    getAuthStateFromMessage Nothing = Error "Can't parse auth state"
 
 processState :: Client -> AuthorizationState -> IO ()
 processState client AuthorizationStateWaitEncryptionKey = do
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageTwo
-  waitForType AuthorizationStateWaitPhoneNumber client
+  send client $ encodeValue stageTwo
+  waitForType client AuthorizationStateWaitPhoneNumber
 processState client AuthorizationStateWaitPhoneNumber = do
   number <- Env.get "mobile phone number" "PHONE_NUMBER"
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageThree number
-  waitForType AuthorizationStateWaitCode client
+  send client $ encodeValue $ stageThree $ pack number
+  waitForType client AuthorizationStateWaitCode
 processState client AuthorizationStateWaitCode = do
   putStrLn "Please, enter code:"
   code <- getLine
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageFour code
-  waitForType AuthorizationStateReady client
+  send client $ encodeValue $ stageFour $ pack code
+  waitForType client AuthorizationStateReady
 processState _ AuthorizationStateReady = return ()
-processState client _ = waitForType AuthorizationStateReady client
+processState client _ = waitForType client AuthorizationStateReady
 
 authorize :: ApiKey -> IO Client
 authorize key = do
   client <- TDLib.create
-  TDLib.send client "{\"@type\": \"getAuthorizationState\", \"@extra\": 1.01234}"
-  TDLib.send client $ ByteString.Lazy.toStrict $ encode $ stageOne key
-  waitForType AuthorizationStateWaitEncryptionKey client
+  send client "{\"@type\": \"getAuthorizationState\", \"@extra\": 1.01234}"
+  send client $ encodeValue $ stageOne key
+  waitForType client AuthorizationStateWaitEncryptionKey
   return client
 
 close :: Client -> IO ()
@@ -123,52 +116,52 @@ instance FromJSON AuthorizationState where
     return $ getAuthorizationStateFromString type'
 
 getAuthorizationState :: ByteString.ByteString -> Result AuthorizationState
-getAuthorizationState jsonStr = if isAuthState then unpackState (getState obj) else Error "Not updateAuthorizationState"
+getAuthorizationState jsonStr = if isAuthState then unpackState (getState maybeObj) else Error "Not updateAuthorizationState"
   where
-    obj = getObject jsonStr
-    type' = getTypeFromObject obj
+    maybeObj = getObject jsonStr
+    type' = getTypeFromObject maybeObj
     isAuthState = isAuthStateImpl type'
     unpackState :: Result (Result AuthorizationState) -> Result AuthorizationState
     unpackState (Success result) = result
     unpackState _ = Error "Can't parse authorization_state"
 
-    getState :: (Maybe Object) -> Result (Result AuthorizationState)
+    getState :: Maybe Object -> Result (Result AuthorizationState)
     getState (Just obj) = parse (\o -> do
       state <- o .: "authorization_state"
       return (fromJSON state))
       obj
     getState Nothing = Error "Can't parse authorization_state"
 
-    isAuthStateImpl :: Result String -> Bool
+    isAuthStateImpl :: Result Text -> Bool
     isAuthStateImpl (Success "updateAuthorizationState") = True
     isAuthStateImpl _ = False
 
 
 -- ####################### Draft for first stage JSON #######################
-data TdlibParameters = TdlibParameters {
-    database_directory :: String,
-    use_message_database :: Bool,
-    use_secret_chats :: Bool,
-    api_id :: Int,
-    api_hash :: String,
-    system_language_code :: String,
-    device_model :: String,
-    system_version :: String,
-    application_version :: String,
-    enable_storage_optimizer :: String
-  }
+-- data TdlibParameters = TdlibParameters {
+--     database_directory :: String,
+--     use_message_database :: Bool,
+--     use_secret_chats :: Bool,
+--     api_id :: Int,
+--     api_hash :: String,
+--     system_language_code :: String,
+--     device_model :: String,
+--     system_version :: String,
+--     application_version :: String,
+--     enable_storage_optimizer :: String
+--   }
 
-instance FromJSON TdlibParameters where
-  parseJSON = withObject "parameters" $ \o -> do
-    database_directory   <- o .: "database_directory"
-    use_message_database <- o .: "use_message_database"
-    return TdlibParameters{..}
+-- instance FromJSON TdlibParameters where
+--   parseJSON = withObject "parameters" $ \o -> do
+--     database_directory   <- o .: "database_directory"
+--     use_message_database <- o .: "use_message_database"
+--     return TdlibParameters{..}
 
-instance ToJSON TdlibParameters where
-  toJSON TdlibParameters{..} = object [
-    "database_directory" .= database_directory,
-    "use_message_database"  .= use_message_database  ]
+-- instance ToJSON TdlibParameters where
+--   toJSON TdlibParameters{..} = object [
+--     "database_directory" .= database_directory,
+--     "use_message_database"  .= use_message_database  ]
 
 -- setTdlibParameters :: TdlibParameters -> IO ()
 -- setTdlibParameters p = do
---   TDLib.send client $ ByteString.Lazy.toStrict $ encode $ toJSON $ TdlibParameters {}
+--   send client $ encodeValue $ toJSON $ TdlibParameters {}
