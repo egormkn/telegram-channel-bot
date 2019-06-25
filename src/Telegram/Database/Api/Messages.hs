@@ -4,7 +4,6 @@ module Telegram.Database.Api.Messages where
 
 import Data.Aeson
 import Data.Aeson.Types
-import Data.Scientific
 import Data.Text
 import GHC.Exts
 import Telegram.Database.Json
@@ -40,23 +39,23 @@ getChannelNameFromText = stripPrefix telegramBaseLink
 forwardMessageJSON :: Message -> Integer -> Value
 forwardMessageJSON Message{messageId = msgId, chatId = fromChatId} chatId = Object $ fromList  [
   ("@type", String "forwardMessages"),
-  ("from_chat_id", Number (scientific fromChatId 0)),
-  ("chat_id", Number (scientific chatId 0)),
-  ("message_ids", Array $ fromList [Number (scientific msgId 0)])
+  ("from_chat_id", Number (realToFrac fromChatId)),
+  ("chat_id", Number (realToFrac chatId)),
+  ("message_ids", Array $ fromList [Number (realToFrac msgId)])
   ]
 
 viewMessagesJSON :: Message -> Value
 viewMessagesJSON Message{messageId = msgId, chatId = chatId} = Object $ fromList  [
   ("@type", String "viewMessages"),
-  ("chat_id", Number (scientific chatId 0)),
-  ("message_ids", Array $ fromList [Number (scientific msgId 0)]),
+  ("chat_id", Number (realToFrac chatId)),
+  ("message_ids", Array $ fromList [Number (realToFrac msgId)]),
   ("force_read", Bool True)
   ]
 
 sendMessageJSON :: Text -> Message -> Value
 sendMessageJSON text Message{chatId = chatId} = Object $ fromList  [
   ("@type", String "sendMessage"),
-  ("chat_id", Number (scientific chatId 0)),
+  ("chat_id", Number $ realToFrac chatId),
   ("input_message_content", Object $ fromList [
     ("@type", String "inputMessageText"),
     ("text", Object $ fromList [

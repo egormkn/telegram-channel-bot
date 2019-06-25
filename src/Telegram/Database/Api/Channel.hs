@@ -12,7 +12,6 @@ import Telegram.Database.Api.Utils
 import Telegram.Database.Json
 import Data.Aeson
 import GHC.Exts
-import Data.Scientific
 import Data.Text
 
 import qualified Data.ByteString as ByteString
